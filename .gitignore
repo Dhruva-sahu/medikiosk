@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# Database / local data
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
+uploads/
+backend/uploads/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Freebuff
+.freebuff/
+# Local startup scripts
+start.bat
+start.sh
+
+# Backend local files
+backend/venv/
+backend/.env
+backend/medikiosk.db
+backend/uploads/
+# Vercel local config
+frontend/.vercel/
+# Frontend dependencies/build
+frontend/node_modules/
+frontend/dist/

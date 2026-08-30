@@ -1,0 +1,32 @@
+# Swasthya Setu backend dependencies
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.9
+
+# Auth & security
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+PyJWT==2.9.0
+python-multipart==0.0.12
+
+# HTTP / middleware
+python-dotenv==1.0.1
+httpx==0.27.2
+
+# OCR / file processing
+# PaddleOCR is optional - only needed for OCR_PROVIDER=paddleocr
+# pip install paddleocr paddlepaddle separately if needed
+# PaddleOCR falls back to mock when not installed
+Pillow==11.0.0
+gTTS>=2.5.0
+
+# AI providers (optional - only needed for AI_MODE=live)
+# openai, google-generativeai, anthropic installed separately if needed
+
+# Test
+pytest==8.3.3
+httpx[asgi]==0.27.2

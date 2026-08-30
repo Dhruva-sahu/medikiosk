@@ -1,0 +1,1 @@
+"""Swasthya Setu app package."""
