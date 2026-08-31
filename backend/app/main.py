@@ -30,7 +30,6 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    settings = get_settings()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
@@ -48,27 +47,28 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
+    # CORS – use env var CORS_ORIGINS (comma-separated) with sensible defaults.
+    _settings = get_settings()
+    _origins = (
+        _settings.cors_origin_list
+        if _settings.cors_origins
+        else [
             "https://gilded-marshmallow-fdb007.netlify.app",
             "http://localhost:5173",
             "http://localhost:3000",
-        ],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        ]
     )
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
+        allow_origins=_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    # API routes
     api_prefix = "/api/v1"
+
     app.include_router(system_api.router, prefix=api_prefix)
     app.include_router(auth_api.router, prefix=api_prefix)
     app.include_router(consent_api.router, prefix=api_prefix)
@@ -80,10 +80,14 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unhandled(request, exc):  # noqa: ARG001
-        logger.exception("Unhandled error: %s", exc)
+        logger.exception("Unhandled error: %r", exc)
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Something went wrong. Please try again.", "data": None},
+            content={
+                "success": False,
+                "message": "Something went wrong. Please try again.",
+                "data": None,
+            },
         )
 
     return app

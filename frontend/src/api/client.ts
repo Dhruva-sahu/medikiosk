@@ -1,4 +1,4 @@
-const BASE = '/api/v1';
+const BASE = 'https://medikiosk-v8e9.onrender.com/api/v1';
 
 function getToken(): string | null {
   return localStorage.getItem('swasthya_setu_token');

@@ -1,40 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Volume2, Mic, Check, ArrowRight, Upload, AlertCircle } from 'lucide-react';
-
-// Mock API calls - these should be replaced by actual services in a real app
-const api = {
-  async startSession(lang: string, mode: string) {
-    const res = await fetch('/api/v1/intake/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: lang, mode }),
-    });
-    return res.json();
-  },
-  async getNextQuestion(sessionId: string) {
-    const res = await fetch(`/api/v1/intake/next?session_id=${sessionId}`);
-    return res.json();
-  },
-  async submitAnswer(sessionId: string, questionCode: string, answerText: string) {
-    const res = await fetch('/api/v1/intake/answer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, question_code: questionCode, answer_text: answerText }),
-    });
-    return res.json();
-  },
-  async synthesizeSpeech(text: string, lang: string) {
-    const formData = new FormData();
-    formData.append('text', text);
-    formData.append('language', lang);
-    const res = await fetch('/api/v1/speech/synthesize', {
-      method: 'POST',
-      body: formData,
-    });
-    return res.blob();
-  },
-};
+import React, { useState } from 'react';
+import { Volume2, Mic, Check, ArrowRight, Upload } from 'lucide-react';
+import { api } from '../../api/client';
 
 type Step = 'LANGUAGE' | 'CONSENT' | 'INTAKE' | 'DOCUMENTS' | 'REVIEW';
 
@@ -42,21 +8,28 @@ export const IntakeFlow: React.FC = () => {
   const [step, setStep] = useState<Step>('LANGUAGE');
   const [language, setLanguage] = useState('en');
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [currentAnswer, setCurrentAnswer] = useState('');
 
   const handleLanguageSelect = async (lang: string) => {
     setLanguage(lang);
-    const data = await api.startSession(lang, 'STANDARD');
-    setSessionId(data.session_id);
-    setStep('CONSENT');
+    try {
+      const res = await api.startIntake({ language: lang, mode: 'STANDARD' });
+      const session = res.data || res;
+      setSessionId(session.id);
+      setStep('CONSENT');
+    } catch (err) {
+      console.error('Failed to start session:', err);
+    }
   };
 
   const playGuidance = async (text: string) => {
-    const blob = await api.synthesizeSpeech(text, language);
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play();
+    try {
+      const blob = await api.synthesizeSpeech(text, language);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+    } catch (err) {
+      console.error('Speech synthesis failed:', err);
+    }
   };
 
   return (
@@ -106,10 +79,10 @@ export const IntakeFlow: React.FC = () => {
         </div>
       )}
 
-      {step === 'INTAKE' && (
+      {step === 'INTAKE' && sessionId && (
         <div className="w-full space-y-8">
           <IntakeQuestion
-            sessionId={sessionId!}
+            sessionId={sessionId}
             language={language}
             onComplete={() => setStep('DOCUMENTS')}
             playGuidance={playGuidance}
@@ -152,25 +125,38 @@ const IntakeQuestion: React.FC<{ sessionId: string, language: string, onComplete
   const [answer, setAnswer] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadNext();
   }, []);
 
   const loadNext = async () => {
-    const data = await api.getNextQuestion(sessionId);
-    if (data.next_question) {
-      setQuestion(data.next_question);
-      // Auto-play guidance
-      playGuidance(data.next_question.prompt);
-    } else {
+    try {
+      const res = await api.getNextQuestion(sessionId);
+      const data = res.data || res;
+      if (data.next_question) {
+        setQuestion(data.next_question);
+        playGuidance(data.next_question.prompt);
+      } else {
+        onComplete();
+      }
+    } catch (err) {
+      console.error('Failed to get next question:', err);
       onComplete();
     }
   };
 
   const handleAnswer = async () => {
-    await api.submitAnswer(sessionId, question.code, answer);
-    setAnswer('');
-    loadNext();
+    try {
+      await api.submitAnswer(sessionId, {
+        question_code: question.code,
+        answer_text: answer,
+        source: isRecording ? 'VOICE_TRANSCRIBED' : 'PATIENT_TOUCH',
+      });
+      setAnswer('');
+      loadNext();
+    } catch (err) {
+      console.error('Failed to submit answer:', err);
+    }
   };
 
   if (!question) return <div className="text-center text-2xl">Loading...</div>;
@@ -221,7 +207,12 @@ const IntakeQuestion: React.FC<{ sessionId: string, language: string, onComplete
               key={opt.value}
               onClick={() => {
                 setAnswer(opt.label);
-                handleAnswer();
+                // Auto-submit on choice select
+                api.submitAnswer(sessionId, {
+                  question_code: question.code,
+                  answer_text: opt.label,
+                  source: 'PATIENT_TOUCH',
+                }).then(() => loadNext());
               }}
               className="py-6 px-6 text-2xl font-semibold bg-white border-4 border-slate-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all text-left flex justify-between items-center"
             >
